@@ -287,11 +287,15 @@ else if(cat.includes("misdirection")) rep="[Misleading phrasing neutralized]";
 else if(cat.includes("forced action")) rep="[Forced action prompt neutralized]";
 else if(cat.includes("obstruction")) rep="[Obstruction bypassed]";
 
-el.innerText = rep;
-el.classList.add("dp-neutralized");
+el.dataset.neutralizedText = rep;
+if (!el.classList.contains("dp-revealed")) {
+    el.innerText = rep;
+    el.classList.add("dp-neutralized");
+}
 }else{
 el.innerText = el.dataset.original;
 el.classList.remove("dp-neutralized");
+el.classList.remove("dp-revealed");
 }
 }
 
@@ -303,6 +307,9 @@ function applyMode(el,info){
 if(!info) return;
 if(info.category.toLowerCase().includes("not dark") || info.category.toLowerCase().includes("normal")) return;
 if(MODE==="UC") return;
+
+const isEnabled = !document.body.classList.contains("dp-feature-disabled");
+if(!isEnabled) return;
 
 if(MODE==="HLE") highlight(el,info.category);
 if(MODE==="HD") hide(el,info.category);
@@ -340,12 +347,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     
     if (msg.action === "updateMode") {
         MODE = msg.mode;
-        // Re-apply the mode to all processed elements without reloading the page
-        document.querySelectorAll(".dp-highlight, [data-original], .dp-hidden-element").forEach(el => {
-            // First revert everything to clean state
+        
+        // Revert all potential DOM changes globally
+        document.querySelectorAll(".dp-highlight, [data-original], .dp-hidden-element, [data-dp-category]").forEach(el => {
             if(el.dataset.original) {
                 el.innerText = el.dataset.original;
                 el.classList.remove("dp-neutralized");
+                el.classList.remove("dp-revealed");
             }
             if(el.classList.contains("dp-highlight")) {
                 el.classList.remove("dp-highlight");
@@ -354,42 +362,42 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 el.style.display = "";
                 el.classList.remove("dp-hidden-element");
             }
-            
-            // Re-apply based on new mode
-            if (MODE === "HLE" && el.dataset.dpCategory) {
-                highlight(el, el.dataset.dpCategory);
-            } else if (MODE === "HD" && el.dataset.dpCategory) {
-                hide(el, el.dataset.dpCategory);
-            } else if (MODE === "SW" && el.dataset.dpCategory) {
-                switchText(el, {category: el.dataset.dpCategory});
-            }
         });
 
-// Removed createButton from updateMode as the toggle now lives in the popup
+        // Re-apply from cache so elements missed by querySelectorAll (e.g. UC mode) are updated
+        elementMap.forEach((elements, key) => {
+            const info = textCache.get(key);
+            if(!info) return;
+            elements.forEach(el => applyMode(el, info));
+        });
+
     } else if (msg.action === "toggleFeature" || msg.action === "toggleSite") {
         const isDisabled = msg.action === "toggleFeature" ? !msg.enabled : msg.disabledForSite;
         
         if (isDisabled) {
             document.body.classList.add("dp-feature-disabled");
             // Revert all dynamic mode changes
-            document.querySelectorAll(".dp-highlight, [data-original], .dp-hidden-element").forEach(el => {
+            document.querySelectorAll(".dp-highlight, [data-original], .dp-hidden-element, [data-dp-category]").forEach(el => {
                 if (el.dataset.original) {
                     el.innerText = el.dataset.original;
                     el.classList.remove("dp-neutralized");
+                    el.classList.remove("dp-revealed");
+                }
+                if (el.classList.contains("dp-highlight")) {
+                    el.classList.remove("dp-highlight");
                 }
                 if (el.classList.contains("dp-hidden-element")) {
                     el.style.display = "";
+                    el.classList.remove("dp-hidden-element");
                 }
             });
         } else {
             document.body.classList.remove("dp-feature-disabled");
             // Re-apply current mode
-            document.querySelectorAll("[data-dp-category]").forEach(el => {
-                if (MODE === "SW") {
-                    switchText(el, {category: el.dataset.dpCategory});
-                } else if (MODE === "HD") {
-                    hide(el, el.dataset.dpCategory);
-                }
+            elementMap.forEach((elements, key) => {
+                const info = textCache.get(key);
+                if(!info) return;
+                elements.forEach(el => applyMode(el, info));
             });
         }
     }
@@ -543,6 +551,28 @@ document.addEventListener("mousemove", (e) => {
 /* =============================
    START
 ============================= */
+
+// Click handler for toggling neutralized text
+document.addEventListener("click", (e) => {
+    if(MODE !== "SW") return;
+    const isEnabled = !document.body.classList.contains("dp-feature-disabled");
+    if(!isEnabled) return;
+
+    const target = e.target.closest(".dp-neutralized");
+    if(target) {
+        if(target.classList.contains("dp-revealed")) {
+            // currently showing original, hide it
+            target.innerText = target.dataset.neutralizedText || "[Manipulative text neutralized]";
+            target.classList.remove("dp-revealed");
+        } else {
+            // currently hiding original, show it
+            target.innerText = target.dataset.original;
+            target.classList.add("dp-revealed");
+        }
+        e.preventDefault();
+        e.stopPropagation();
+    }
+}, true);
 
 setTimeout(scan,1500);
 let observerCooldown=false;
