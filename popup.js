@@ -41,8 +41,12 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
     if (tabs[0] && tabs[0].id) {
         chrome.tabs.sendMessage(tabs[0].id, {action: "getCounts"}, function(response) {
             if (!chrome.runtime.lastError && response) {
-                document.getElementById("text-count").innerText = response.textualCount || 0;
-                document.getElementById("struct-count").innerText = response.structuralCount || 0;
+                const txt = document.getElementById("text-count");
+                if(txt) txt.innerText = response.textualCount || 0;
+                const struct = document.getElementById("struct-count");
+                if(struct) struct.innerText = response.structuralCount || 0;
+                const vis = document.getElementById("visual-count");
+                if(vis) vis.innerText = response.visualCount || 0;
             }
         });
     }
@@ -116,6 +120,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (msg.textualCount !== undefined) {
             const textCountEl = document.getElementById("text-count");
             if (textCountEl) textCountEl.innerText = msg.textualCount;
+        }
+        if (msg.visualCount !== undefined) {
+            const visCountEl = document.getElementById("visual-count");
+            if (visCountEl) visCountEl.innerText = msg.visualCount;
         }
     }
 });

@@ -299,10 +299,6 @@ el.classList.remove("dp-revealed");
 }
 }
 
-/* =============================
-   APPLY MODE
-============================= */
-
 function applyMode(el,info){
 if(!info) return;
 if(info.category.toLowerCase().includes("not dark") || info.category.toLowerCase().includes("normal")) return;
@@ -310,6 +306,10 @@ if(MODE==="UC") return;
 
 const isEnabled = !document.body.classList.contains("dp-feature-disabled");
 if(!isEnabled) return;
+
+if (info.isVisual) {
+    el.classList.add("dp-visual-element");
+}
 
 if(MODE==="HLE") highlight(el,info.category);
 if(MODE==="HD") hide(el,info.category);
@@ -408,6 +408,189 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 ============================= */
 
 /* =============================
+   AIDUI VISUAL & SPATIAL ANALYSIS
+============================= */
+
+const VISUAL_CUE_MAPPING = [
+    { keywords: ['like', 'thumbs-up', 'thumbsup', 'heart', 'fa-thumbs-up', 'fa-heart'], dp: 'Nagging' },
+    { keywords: ['dislike', 'thumbs-down', 'thumbsdown', 'fa-thumbs-down'], dp: 'Nagging' },
+    { keywords: ['toggle', 'switch', 'slider'], dp: 'Default Choice' },
+    { keywords: ['ad', 'sponsor', 'promoted', 'advertisement'], dp: 'Disguised Ads' },
+    { keywords: ['loader', 'spinner', 'loading', 'fa-spinner'], dp: 'Gamification' }
+];
+
+function detectVisualCue(el) {
+    let icons = Array.from(el.querySelectorAll('svg, img, i'));
+    
+    if (el.parentElement) {
+        const parentRect = el.parentElement.getBoundingClientRect();
+        if (parentRect.width < 200 && parentRect.height < 100) {
+            const parentIcons = Array.from(el.parentElement.querySelectorAll('svg, img, i'));
+            icons = [...new Set([...icons, ...parentIcons])];
+        }
+    }
+    
+    if (icons.length === 0) return null;
+    
+    for (let icon of icons) {
+        const textToSearch = [
+            icon.className?.toString() || '',
+            icon.id || '',
+            icon.getAttribute('aria-label') || '',
+            icon.getAttribute('alt') || '',
+            icon.innerHTML || ''
+        ].join(' ').toLowerCase();
+
+        for (let cue of VISUAL_CUE_MAPPING) {
+            for (let keyword of cue.keywords) {
+                if (textToSearch.includes(keyword)) {
+                    return cue.dp;
+                }
+            }
+        }
+    }
+    return null;
+}
+
+function getEffectiveBackgroundColor(el) {
+    let currentEl = el;
+    while (currentEl && currentEl !== document.documentElement) {
+        const style = window.getComputedStyle(currentEl);
+        const bg = style.backgroundColor;
+        if (bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') {
+            const bgMatch = bg.match(/[\d.]+/g);
+            if (bgMatch && bgMatch.length === 4 && parseFloat(bgMatch[3]) === 0) {
+                // Fully transparent, keep traversing up
+            } else {
+                return bg;
+            }
+        }
+        currentEl = currentEl.parentElement;
+    }
+    return 'rgb(255, 255, 255)'; // Default background
+}
+
+function analyzeColor(el) {
+    const bg = getEffectiveBackgroundColor(el);
+    const bgMatch = bg.match(/[\d.]+/g);
+    if (!bgMatch || bgMatch.length < 3) return "normal";
+    
+    const intensity = (0.299 * parseFloat(bgMatch[0]) + 0.587 * parseFloat(bgMatch[1]) + 0.114 * parseFloat(bgMatch[2]));
+    
+    // Paper's two bins: 0-127 (darker) and 128-255 (brighter)
+    if (intensity < 128) return "darker";
+    else return "brighter";
+}
+
+function isColorfulBadge(el, style, rect) {
+    const bgMatch = style.backgroundColor.match(/[\d.]+/g);
+    if (!bgMatch || bgMatch.length < 3) return false;
+    if (bgMatch.length >= 4 && parseFloat(bgMatch[3]) === 0) return false;
+    if (style.backgroundColor === 'transparent') return false;
+    
+    const r = parseFloat(bgMatch[0]);
+    const g = parseFloat(bgMatch[1]);
+    const b = parseFloat(bgMatch[2]);
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    if (max - min < 20) return false; // grayscale
+    if (max < 50 || min > 230) return false; // too dark or too white
+    
+    // Check if it's a small badge
+    if (rect.width < 250 && rect.height < 60 && rect.width > 10 && rect.height > 10) {
+        return true;
+    }
+    return false;
+}
+
+function resolveVisualDP(el, nodes) {
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+
+    const style = window.getComputedStyle(el);
+    const isBadge = isColorfulBadge(el, style, rect);
+
+    // AidUI Paper Phase 3: "Text analysis is used to select the segments... Next, color analysis is performed"
+    // We strictly filter to only run spatial/color analysis on elements with decision keywords (like the paper does)
+    const textLower = el.innerText.trim().toLowerCase();
+    const decisionWords = ['accept', 'decline', 'agree', 'cancel', 'continue', 'skip', 'yes', 'no', 'allow', 'deny'];
+    const hasDecisionText = decisionWords.some(w => textLower.includes(w) || textLower === w);
+
+    if (!hasDecisionText && !isBadge) return null;
+
+    // AidUI Spatial Analysis: 5% proximity neighborhood
+    const proximity = Math.max(rect.width, rect.height) * 0.05;
+    const nTop = rect.top - proximity;
+    const nBottom = rect.bottom + proximity;
+    const nLeft = rect.left - proximity;
+    const nRight = rect.right + proximity;
+    
+    let neighbors = [];
+    let maxWidth = rect.width;
+    let maxHeight = rect.height;
+
+    for (let node of nodes) {
+        if (node.element === el) continue;
+        const nRect = node.element.getBoundingClientRect();
+        
+        // Find intersecting neighbors
+        if (nRect.right >= nLeft && nRect.left <= nRight && nRect.bottom >= nTop && nRect.bottom > 0) {
+            // Ignore perfectly overlapping identical elements
+            if (nRect.width === rect.width && nRect.height === rect.height) continue;
+            neighbors.push(node.element);
+            maxWidth = Math.max(maxWidth, nRect.width);
+            maxHeight = Math.max(maxHeight, nRect.height);
+        }
+    }
+    
+    if (neighbors.length === 0) return null;
+    
+    const myColor = analyzeColor(el);
+    
+    // AidUI Spatial Analysis: compute relative width and height
+    const relWidth = rect.width / maxWidth;
+    const relHeight = rect.height / maxHeight;
+    
+    let colorVote = 0;
+    let spatialVote = 0;
+    
+    const SPATIAL_THRESHOLD = 0.3; // predefined threshold for relative size difference
+
+    for (let neighbor of neighbors) {
+        const neighborColor = analyzeColor(neighbor);
+        const neighborRect = neighbor.getBoundingClientRect();
+        const neighborRelWidth = neighborRect.width / maxWidth;
+        const neighborRelHeight = neighborRect.height / maxHeight;
+        
+        // AidUI Color Resolution: Opposite brightness
+        if (myColor !== "normal" && neighborColor !== "normal" && myColor !== neighborColor) {
+            colorVote = 1;
+        }
+        
+        // AidUI Spatial Resolution: Difference of relative height or width > threshold
+        if (Math.abs(relWidth - neighborRelWidth) > SPATIAL_THRESHOLD || Math.abs(relHeight - neighborRelHeight) > SPATIAL_THRESHOLD) {
+            spatialVote = 1;
+        }
+    }
+    
+    // AidUI Segment Level Resolution: Equally weighted score across features
+    if (colorVote + spatialVote >= 2) {
+        if (relWidth > 0.5 || relHeight > 0.5) {
+            return "Attention Distraction: Visually emphasized to distract users.";
+        } else {
+            return "Default Choice: Visually de-emphasized to hide alternative options.";
+        }
+    }
+    
+    if (isBadge) {
+        return "Attention Distraction: Visually emphasized badge to attract attention.";
+    }
+    
+    return null;
+}
+
+/* =============================
    SCAN
 ============================= */
 
@@ -434,6 +617,16 @@ if(!elementMap.has(key)) elementMap.set(key, new Set());
 elementMap.get(key).add(n.element);
 
 if(textCache.has(key)) return;
+
+// AidUI Visual Check
+let visualCategory = detectVisualCue(n.element) || resolveVisualDP(n.element, nodes);
+if (visualCategory) {
+    if (!visualCategory.includes(":")) {
+        visualCategory += ": Visual cues indicate manipulative design.";
+    }
+    textCache.set(key, { text: n.text, category: visualCategory, isVisual: true });
+    return; // Do not send to LLM, we found it visually
+}
 
 observedNodes.set(n.element, key);
 visibilityObserver.observe(n.element);
