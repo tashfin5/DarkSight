@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="popup.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="header">
+        <img src="logo/darksight.png" class="logo" alt="Logo">
+        <h3>DarkSight</h3>
+    </div>
+    
+    <div class="container">
+        <div class="stats-container">
+            <div class="stat-item">
+                <span class="stat-label">Textual Patterns Detected</span>
+                <span class="stat-value" id="text-count">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Structural Patterns Detected</span>
+                <span class="stat-value" id="struct-count">0</span>
+            </div>
+        </div>
+        
+        <p class="subtitle">Select Intervention Mode</p>
+        
+        <button class="mode-btn uc" data-mode="UC">
+            <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></span>
+            <div class="text-block">
+                <span class="title">Unchanged</span>
+                <span class="desc">Disabled</span>
+            </div>
+        </button>
+        
+        <button class="mode-btn hle" data-mode="HLE">
+            <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg></span>
+            <div class="text-block">
+                <span class="title">Highlight & Explain</span>
+                <span class="desc">Identify and explain patterns</span>
+            </div>
+        </button>
+        
+        <button class="mode-btn hd" data-mode="HD">
+            <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg></span>
+            <div class="text-block">
+                <span class="title">Hide</span>
+                <span class="desc">Remove manipulative elements</span>
+            </div>
+        </button>
+        
+        <button class="mode-btn sw" data-mode="SW">
+            <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></span>
+            <div class="text-block">
+                <span class="title">Switch</span>
+                <span class="desc">Neutralize deceptive language</span>
+            </div>
+        </button>
+
+        <div class="toggle-container">
+            <span class="toggle-label">Enable Detector</span>
+            <label class="dp-switch">
+                <input type="checkbox" id="master-toggle" checked>
+                <span class="dp-slider"></span>
+            </label>
+        </div>
+
+        <div class="toggle-container">
+            <span class="toggle-label">Turn off for this site</span>
+            <label class="dp-switch">
+                <input type="checkbox" id="site-toggle">
+                <span class="dp-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="footer">
+        Powered by local Mistral LLM
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

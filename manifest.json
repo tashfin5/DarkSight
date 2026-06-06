@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "DarkSight",
+  "version": "1.4.2",
+  "description": "Detects dark patterns using local LLM",
+  "icons": {
+    "16": "logo/darksight.png",
+    "48": "logo/darksight.png",
+    "128": "logo/darksight.png"
+  },
+  "permissions": ["scripting", "storage", "declarativeNetRequest", "declarativeNetRequestWithHostAccess"],
+  "host_permissions": [
+    "<all_urls>",
+    "http://127.0.0.1:11434/*"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "logo/darksight.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["prompt.js", "content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  }
+}

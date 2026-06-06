@@ -1,0 +1,79 @@
+/* Inject Outfit font */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
+
+.dp-highlight {
+    outline: 2px solid #f43f5e !important;
+    outline-offset: 4px;
+    border-radius: 4px;
+    position: relative;
+    box-shadow: 0 0 15px rgba(244, 63, 94, 0.4);
+    animation: dpPulseHighlight 2s infinite alternate;
+    cursor: help;
+}
+
+
+
+/* Global Floating Tooltip */
+#dp-global-tooltip {
+    display: none;
+    position: fixed;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
+    padding: 10px 14px;
+    font-size: 13px;
+    border-radius: 8px;
+    white-space: normal;
+    width: max-content;
+    max-width: 250px;
+    text-align: center;
+    line-height: 1.4;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 2147483647; /* Maximum z-index */
+    font-family: 'Outfit', Arial, sans-serif;
+    font-weight: 600;
+    pointer-events: none;
+    transform: translate(-50%, calc(-100% - 15px));
+    animation: dpTooltipFadeIn 0.15s forwards ease-out;
+}
+
+#dp-global-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 8px;
+    border-style: solid;
+    border-color: rgba(15, 23, 42, 0.95) transparent transparent transparent;
+}
+
+@keyframes dpTooltipFadeIn {
+    0% { opacity: 0; transform: translateX(-50%) translateY(4px); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Removed on-page toggle CSS */
+
+/* Neutralized mode styling */
+.dp-neutralized {
+    color: #10b981 !important;
+    background: rgba(16, 185, 129, 0.1) !important;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-style: italic;
+    font-weight: 600;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* Global Disable Feature */
+body.dp-feature-disabled .dp-highlight {
+    outline: none !important;
+    box-shadow: none !important;
+    animation: none !important;
+}
+body.dp-feature-disabled .dp-highlight:hover::after,
+body.dp-feature-disabled .dp-highlight:hover::before {
+    display: none !important;
+}
