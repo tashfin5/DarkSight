@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DarkSight",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "Detects dark patterns using local LLM",
   "icons": {
     "16": "logo/darksight.png",
